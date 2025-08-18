@@ -10,11 +10,9 @@ from transformers import AutoTokenizer
 
 from docling.chunking import HybridChunker
 from docling.document_converter import DocumentConverter
-from test_utils.blob_load import list_blob
 
 # from docling.tokenizers import OpenAITokenizerWrapper
 
-list_blob()
 hf_tok = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
 
 load_dotenv()
@@ -33,7 +31,7 @@ MAX_TOKENS = 4000  # text-embedding-3-large's maximum context length
 
 converter = DocumentConverter()
 
-pdf_dir = Path(__file__).parent.parent / "pdfs" / "test.pdf"
+pdf_dir = Path(__file__).parent.parent / "pdfs" / "arzani.pdf"
 result = converter.convert(pdf_dir)
 
 # result = converter.convert("https://arxiv.org/pdf/2408.09869")
