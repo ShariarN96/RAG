@@ -25,5 +25,5 @@ def wiley_dois_2025_by_keyword(query, limit=5):
 
 # Example:
 if __name__ == "__main__":
-    for doi in wiley_dois_2025_by_keyword("high-entropy", limit=5):
+    for doi in wiley_dois_2025_by_keyword("graphene", limit=20):
         print(doi)

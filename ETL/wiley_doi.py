@@ -18,7 +18,7 @@ except KeyError:
 # tdm = TDMClient()
 # WILEY_TDM_TOKEN = load_dotenv(WILEY_PATH)
 # DOI of article to download
-doi = "10.1002/adem.202501118"
+doi = "doi/10.1002/smll.202505866"
 # DOI of article to download
 url = f"https://api.wiley.com/onlinelibrary/tdm/v1/articles/{doi}"
 headers = {"Wiley-TDM-Client-Token": WILEY_TOKEN}

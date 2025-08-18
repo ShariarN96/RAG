@@ -10,7 +10,11 @@ from transformers import AutoTokenizer
 
 from docling.chunking import HybridChunker
 from docling.document_converter import DocumentConverter
+from test_utils.blob_load import list_blob
 
+# from docling.tokenizers import OpenAITokenizerWrapper
+
+list_blob()
 hf_tok = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
 
 load_dotenv()
