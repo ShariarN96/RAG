@@ -33,16 +33,6 @@ result = converter.convert(pdf_dir)
 # Apply hybrid chunking
 # --------------------------------------------------------------
 
-# tok = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
-# max_len = getattr(tok, "model_max_length", 512)  # usually 512 for BERT
-# safe_chunk = min(480, max_len - 32)  # small buffer
-
-# chunker = HybridChunker(
-#     tokenizer=tok,
-#     max_tokens=safe_chunk,  # e.g., 480
-#     merge_peers=True,
-# )
-
 
 chunker = HybridChunker(
     tokenizer=hf_tok,

@@ -14,10 +14,6 @@ try:
 except KeyError:
     print("Token not found. Please set 'WILEY_TDM_TOKEN' in your .env file.")
 
-# Uses TDM_API_TOKEN from environment
-# tdm = TDMClient()
-# WILEY_TDM_TOKEN = load_dotenv(WILEY_PATH)
-# DOI of article to download
 doi = "doi/10.1002/smll.202505866"
 # DOI of article to download
 url = f"https://api.wiley.com/onlinelibrary/tdm/v1/articles/{doi}"
