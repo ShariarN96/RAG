@@ -2,14 +2,13 @@ from pathlib import Path
 from typing import List
 
 import lancedb
+from docling.chunking import HybridChunker
+from docling.document_converter import DocumentConverter
 from dotenv import load_dotenv
 from lancedb.embeddings import get_registry
 from lancedb.pydantic import LanceModel, Vector
 from openai import OpenAI
 from transformers import AutoTokenizer
-
-from docling.chunking import HybridChunker
-from docling.document_converter import DocumentConverter
 
 # Load environment variables
 load_dotenv()
