@@ -32,7 +32,7 @@ if __name__ == "__main__":
     for doi in wiley_dois_2025_by_keyword("high-entropy alloy", limit=10):
         print(doi)
 
-items = wiley_dois_2025_by_keyword("high-entropy alloy", limit=10)
+items = wiley_dois_2025_by_keyword("high-entropy alloy", limit=5)
 
 x = items[0]
 
@@ -41,8 +41,10 @@ columns = ["DOI", "title", "URL", "container-title", "created"]
 for i in columns:
     print(x[i])
 
-x["DOI"]
-x["title"][0]
-x["URL"]
-x["container-title"]
-x["created"]["date-time"][0:10]
+
+# for item in items:
+# x["DOI"]
+# x["title"][0]
+# x["URL"]
+# x["container-title"]
+# x["created"]["date-time"][0:10]
