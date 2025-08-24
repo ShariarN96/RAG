@@ -6,7 +6,7 @@ It combines a scalable ETL pipeline, advanced text processing/embeddings, and LL
 ---
 ## ⚠️ Disclaimer
 This project is intended **solely for academic and research purposes**.  
-Permission has been granted by **Wiley** to use their **Text and Data Mining (TDM) services** in accordance with their API guidelines.  
+Permission has been granted by **Wiley**, through the subscription and agreement with **University of Illinois Chicago (UIC)**, to use their **Text and Data Mining (TDM) services** in accordance with their API guidelines.  
 Any reproduction, redistribution, or reuse of this project—or the concepts demonstrated within—requires prior approval from **Wiley** and strict adherence to their **API terms and conditions**.
 
 ## 🚀 Features
@@ -32,5 +32,6 @@ Any reproduction, redistribution, or reuse of this project—or the concepts dem
 - **Text Processing:** Docling  
 - **AI/ML:** OpenAI LLMs, vector embeddings  
 - **APIs:** Wiley API, Crossref
+
 
 
