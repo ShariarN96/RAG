@@ -4,10 +4,10 @@ This project implements an AI-powered research chatbot designed to accelerate li
 
 ---
 ## ⚠️ Disclaimer
-This project is intended **solely for academic and research purposes**.  
-Permission has been granted by **Wiley**, through the subscription and agreement with **University of Illinois Chicago (UIC)**, to use their **Text and Data Mining (TDM) services** in accordance with their API guidelines. Any reproduction, redistribution, or reuse of this project, or the concepts demonstrated within, requires prior approval from **Wiley** and strict adherence to their **API terms and conditions**.
-
-👉 Follow [Wiley Text and Data Mining Services](https://onlinelibrary.wiley.com/library-info/resources/text-and-datamining) to learn more.
+This project is intended **solely for academic research purposes** and was developed as part of coursework/research at the **University of Illinois Chicago (UIC)**.  
+Permission to use Wiley’s **Text and Data Mining (TDM) services** has been granted through UIC’s institutional subscription and agreement with Wiley, in accordance with their API guidelines.  
+Any reproduction, redistribution, or reuse of this project, or the concepts demonstrated within, requires prior approval from Wiley and strict adherence to their API terms and conditions.  
+👉 Learn more: [Wiley Text and Data Mining Services](https://onlinelibrary.wiley.com/library-info/resources/text-and-datamining)
 
 ## 🚀 Features
 - **ETL Pipeline**  
@@ -32,6 +32,7 @@ Permission has been granted by **Wiley**, through the subscription and agreement
 - **Text Processing:** Docling  
 - **AI/ML:** OpenAI LLMs
 - **APIs:** Wiley API, Crossref
+
 
 
 
