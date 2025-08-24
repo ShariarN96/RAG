@@ -1,7 +1,6 @@
 # AI-Driven Research Discovery via Retrieval-Augmented Generation (RAG)
 
-This project implements an AI-powered research chatbot** designed to accelerate literature reviews and provide domain-specific research insights from full-text Wiley articles.  
-It combines a scalable ETL pipeline, advanced text processing/embeddings, and LLM-powered conversational retrieval to streamline the discovery of scientific knowledge.
+This project implements an AI-powered research chatbot designed to accelerate literature reviews and provide domain-specific research insights from full-text Wiley articles. It combines a scalable ETL pipeline, advanced text processing/embeddings, and LLM-powered conversational retrieval to streamline the discovery of scientific knowledge.
 
 ---
 ## ⚠️ Disclaimer
@@ -32,6 +31,7 @@ Any reproduction, redistribution, or reuse of this project—or the concepts dem
 - **Text Processing:** Docling  
 - **AI/ML:** OpenAI LLMs, vector embeddings  
 - **APIs:** Wiley API, Crossref
+
 
 
 
