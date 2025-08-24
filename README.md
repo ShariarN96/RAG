@@ -11,10 +11,10 @@ Any reproduction, redistribution, or reuse of this project, or the concepts demo
 
 ## 🚀 Features
 - **ETL Pipeline**  
-  - Crossref Lookup → Finds and validates Wiley DOIs
-  - Wiley API Retrieval → Downloads full-text PDFs using identified DOIs
-  - Azure Blob Storage → Stores documents securely for downstream use
-  - Automation → Current pipeline handles ingestion and organization; Prefect will be integrated in the future for orchestration and workflow automation
+  - **Crossref Lookup** → Finds and validates Wiley DOIs
+  - **Wiley API Retrieval** → Downloads full-text PDFs using identified DOIs
+  - **Azure Blob Storage** → Stores documents securely for downstream use
+  - **Automation** → Current pipeline handles ingestion and organization; **Prefect** will be integrated **in the future** for orchestration and workflow automation
 
 - **Document Processing & Embeddings**  
   - Uses **Docling** for text cleaning, chunking, and preprocessing  
@@ -33,6 +33,7 @@ Any reproduction, redistribution, or reuse of this project, or the concepts demo
 - **Text Processing:** Docling  
 - **AI/ML:** OpenAI LLMs
 - **APIs:** Wiley API, Crossref
+
 
 
 
