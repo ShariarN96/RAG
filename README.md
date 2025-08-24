@@ -8,7 +8,7 @@ This project is intended **solely for academic research purposes** and was devel
 
 Permission to use Wiley’s **Text and Data Mining (TDM) services** has been granted through UIC’s institutional subscription and agreement with Wiley, in accordance with their API guidelines.  
 
-Any reproduction, redistribution, or reuse of this project—or the concepts demonstrated within—requires prior approval from Wiley and strict adherence to their API terms and conditions.  
+Any reproduction, redistribution, or reuse of this project, or the concepts demonstrated within, requires prior approval from Wiley and strict adherence to their API terms and conditions.  
 
 👉 Learn more: [Wiley Text and Data Mining Services](https://onlinelibrary.wiley.com/library-info/resources/text-and-datamining)
 
@@ -36,6 +36,7 @@ Any reproduction, redistribution, or reuse of this project—or the concepts dem
 - **Text Processing:** Docling  
 - **AI/ML:** OpenAI LLMs
 - **APIs:** Wiley API, Crossref
+
 
 
 
