@@ -1,16 +1,22 @@
+import logging
 import os
+from datetime import datetime, timedelta
+from pathlib import Path
 
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobSasPermissions, BlobServiceClient, generate_blob_sas
 from dotenv import load_dotenv
 
-env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
-
-load_dotenv(env_path)
+ENV_PATH = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(ENV_PATH)
 
 conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 
 blob_service_client = BlobServiceClient.from_connection_string(conn_str)
 container_client = blob_service_client.get_container_client("articles")
+logging.getLogger("azure").setLevel(logging.WARNING)
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
+    logging.WARNING
+)
 
 
 def list_blob():
@@ -24,10 +30,11 @@ def list_blob():
 
     # get container client
     container_client = blob_service_client.get_container_client(container_name)
-
+    list_blobs = []
     # list blobs
     for blob in container_client.list_blobs():
-        print(blob.name)
+        list_blobs.append(blob.name)
+    return list_blobs
 
 
 # Call the function
@@ -68,3 +75,27 @@ def upload_blob():
 
 
 upload_blob()
+
+
+def generate_sas_url():
+    # Use your connection string
+    container_name = "articles"
+    blob_name = list_blob()[0]
+    # Connect to blob service
+    bsc = BlobServiceClient.from_connection_string(conn_str)
+
+    # Generate SAS token
+    sas_token = generate_blob_sas(
+        account_name=bsc.account_name,
+        container_name=container_name,
+        blob_name=blob_name,
+        account_key=bsc.credential.account_key,  # pulled from your connection string
+        permission=BlobSasPermissions(read=True),  # read-only access
+        expiry=datetime.utcnow() + timedelta(hours=1),  # valid for 1 hour
+    )
+
+    # Build full URL
+    account_url = f"https://{bsc.account_name}.blob.core.windows.net"
+    sas_url = f"{account_url}/{container_name}/{blob_name}?{sas_token}"
+
+    return sas_url

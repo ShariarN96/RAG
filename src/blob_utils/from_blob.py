@@ -1,14 +1,15 @@
 import os
 import re
 import time
+from pathlib import Path
 
 import requests
 from azure.storage.blob import BlobClient
 from dotenv import load_dotenv
 
-env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+ENV_PATH = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(ENV_PATH)
 
-load_dotenv(env_path)
 WILEY_TDM_TOKEN = os.getenv("TDM_API_TOKEN")  # your Wiley token
 AZURE_CONN_STR = os.getenv("AZURE_STORAGE_CONNECTION_STRING")  # storage conn string
 CONTAINER = "articles"  # your container
@@ -44,4 +45,4 @@ def save_wiley_pdf_to_blob(doi: str, container: str = CONTAINER):
 
 
 # Example:
-save_wiley_pdf_to_blob("10.1002/smll.202505866")
+save_wiley_pdf_to_blob("10.1002/smll.202311713")
