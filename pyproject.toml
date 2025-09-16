@@ -10,6 +10,7 @@ dependencies = [
     "docling>=2.44.0",
     "lancedb>=0.24.2",
     "logging>=0.4.9.6",
+    "numpy>=2.3.3",
     "openai>=1.99.9",
     "streamlit>=1.48.1",
     "tiktoken>=0.11.0",

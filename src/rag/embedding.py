@@ -30,7 +30,7 @@ MAX_TOKENS = 4000  # text-embedding-3-large's maximum context length
 
 converter = DocumentConverter()
 
-pdf_dir = Path(__file__).parent.parent / "pdfs" / "arzani.pdf"
+pdf_dir = Path(__file__).parent.parent.parent / "pdfs" / "test.pdf"
 result = converter.convert(pdf_dir)
 
 # result = converter.convert("https://arxiv.org/pdf/2408.09869")
