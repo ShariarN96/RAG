@@ -1,586 +1,440 @@
+import re
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import plotly.express as px
+from dash import Dash, Input, Output, dcc, html
 
 # Load data from CSV
-df = pd.read_csv("output.csv")
-df = df.drop_duplicates()
 
-#### METAL COUNT ####
+data_path = Path(__file__).parent.parent.parent.parent / "output.csv"
+CSV_PATH = Path(data_path)
 
-## Cleaning
-df.loc[
-    df["metal_count"].str.contains("single", case=False, na=False), "metal_count"
-] = "single"
-df.loc[
-    df["metal_count"].str.contains("bimetallic", case=False, na=False), "metal_count"
-] = "binary"
 
-counts = df["metal_count"].value_counts().reset_index()
-counts.columns = ["metal_count", "Count"]
-counts = counts.head(3)
-fig = px.pie(
-    counts,
-    names="metal_count",
-    values="Count",
-    title="Metal Count Distribution",
-    color_discrete_sequence=px.colors.qualitative.Pastel,
+# ---------------------------
+# Utilities
+# ---------------------------
+def num_from_str(s):
+    """Extract a numeric value from strings like '1,950 mV', '182 m2.g', '210', etc."""
+    if pd.isna(s):
+        return np.nan
+    s = str(s)
+    token = s.split()[0].split(",")[0]
+    try:
+        return float(token)
+    except ValueError:
+        m = re.search(r"(\d+\.?\d*)", s)
+        return float(m.group(1)) if m else np.nan
+
+
+def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    # Normalize metal_count
+    if "metal_count" in df.columns:
+        df.loc[
+            df["metal_count"].str.contains("single", case=False, na=False),
+            "metal_count",
+        ] = "single"
+        df.loc[
+            df["metal_count"].str.contains("bimetallic", case=False, na=False),
+            "metal_count",
+        ] = "binary"
+
+    # Numeric cleaning
+    if "BET_surface_area_m2_per_g" in df.columns:
+        df["BET_surface_area_m2_per_g"] = df["BET_surface_area_m2_per_g"].map(
+            num_from_str
+        )
+    if "tafel_mV_per_dec" in df.columns:
+        df["tafel_mV_per_dec"] = df["tafel_mV_per_dec"].map(num_from_str)
+    if "stability_time_hours" in df.columns:
+        df["stability_time_hours"] = pd.to_numeric(
+            df["stability_time_hours"], errors="coerce"
+        )
+    if "overpotential_mV_at_10mAcm2" in df.columns:
+        df["overpotential_mV_at_10mAcm2"] = df["overpotential_mV_at_10mAcm2"].map(
+            num_from_str
+        )
+
+    # Metal types → list
+    if "metal_types" in df.columns:
+        df["metal_types_list"] = (
+            df["metal_types"]
+            .fillna("")
+            .astype(str)
+            .apply(lambda s: [t.strip() for t in s.split(",") if t.strip()])
+        )
+
+    return df
+
+
+def pie_counts(df_counts, names_col, values_col, title, donut=False):
+    if df_counts.empty:
+        return px.pie(title=title)
+    fig = px.pie(
+        df_counts,
+        names=names_col,
+        values=values_col,
+        title=title,
+        hole=0.4 if donut else 0.0,
+        color_discrete_sequence=px.colors.qualitative.Pastel,
+    )
+    fig.update_traces(textinfo="label+value", textposition="inside")
+    fig.update_layout(
+        showlegend=False, paper_bgcolor="white", plot_bgcolor="white", title_x=0.5
+    )
+    return fig
+
+
+def hbar_metric(df, metric_col, title, top_n=10):
+    cols_needed = {"catalyst", metric_col}
+    if not cols_needed.issubset(df.columns):
+        return px.bar(title=title)
+
+    dff = (
+        df[list(cols_needed)]
+        .dropna()
+        .drop_duplicates()
+        .sort_values(metric_col, ascending=False)
+        .head(top_n)
+    )
+    if dff.empty:
+        return px.bar(title=title)
+
+    fig = px.bar(
+        dff,
+        x=metric_col,
+        y="catalyst",
+        orientation="h",
+        title=title,
+        color=metric_col,
+        color_continuous_scale="Viridis",
+    )
+    fig.update_traces(
+        text=dff[metric_col].round(1),
+        textposition="outside",
+        marker_line_color="rgba(0,0,0,0.4)",
+        marker_line_width=1,
+    )
+    fig.update_layout(
+        yaxis=dict(autorange="reversed"),
+        xaxis_title=metric_col.replace("_", " ").replace("m2", "m²"),
+        yaxis_title="Catalyst",
+        coloraxis_showscale=False,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        title_x=0.5,
+        margin=dict(l=220, r=40, t=70, b=40),
+        height=500,
+    )
+    fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor="lightgray")
+    fig.update_yaxes(showgrid=False)
+    return fig
+
+
+def bar_metal_types(df, top_n=10):
+    if "metal_types_list" not in df.columns:
+        return px.bar(title="Metal Type Distribution")
+    metals = []
+    for lst in df["metal_types_list"]:
+        metals.extend(lst)
+    if not metals:
+        return px.bar(title="Metal Type Distribution")
+
+    xx_df = pd.Series(metals).value_counts().reset_index()
+    xx_df.columns = ["metal", "count"]
+    xx_df = xx_df.head(top_n)
+
+    fig = px.bar(
+        xx_df,
+        x="metal",
+        y="count",
+        title="Metal Type Distribution",
+        text="count",
+        color="metal",
+        color_discrete_sequence=px.colors.qualitative.Set2,
+    )
+    fig.update_traces(
+        textposition="outside", marker_line_color="rgba(0,0,0,0.4)", marker_line_width=1
+    )
+    fig.update_layout(
+        showlegend=False,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        title_x=0.5,
+        margin=dict(l=40, r=40, t=70, b=100),
+        height=500,
+    )
+    return fig
+
+
+# ---------------------------
+# Data
+# ---------------------------
+if not CSV_PATH.exists():
+    raise FileNotFoundError(f"Could not find {CSV_PATH.resolve()}")
+
+df = pd.read_csv(CSV_PATH).drop_duplicates()
+df = prepare_dataframe(df)
+
+# Controls
+METRIC_OPTIONS = {
+    "BET Surface Area (m²/g)": "BET_surface_area_m2_per_g",
+    "Tafel Slope (mV/dec)": "tafel_mV_per_dec",
+    "Stability (hours)": "stability_time_hours",
+    "Overpotential @10 mA/cm² (mV)": "overpotential_mV_at_10mAcm2",
+}
+METALCOUNT_OPTS = (
+    sorted(df["metal_count"].dropna().unique()) if "metal_count" in df else []
 )
-fig.update_layout(showlegend=False)
-fig.update_traces(
-    textinfo="label+value",  # show category + number
-    textposition="inside",  # text inside each slice
-    showlegend=True,  # keep the legend visible
-)
-fig.show()
-
-#### Morphology ####
-
-morphology_counts = df["morphology"].value_counts().reset_index()
-morphology_counts.columns = ["morphology", "Count"]
-morphology_counts = morphology_counts.head(5)
-
-fig = px.pie(
-    morphology_counts,
-    names="morphology",
-    values="Count",
-    title="Morphology Distribution",
-    color_discrete_sequence=px.colors.qualitative.Pastel,
-)
-fig.update_traces(
-    textinfo="value",  # show category + number
-    textposition="inside",  # text inside each slice
-    # showlegend=True,  # keep the legend visible
-    hole=0.4,
-)
-fig.show()
-
-
-#### Surface area ####
-
-catalyst_df = (
-    df[["catalyst", "BET_surface_area_m2_per_g"]]
-    .dropna(axis=0)
-    .sort_values(by="BET_surface_area_m2_per_g")
-)
-catalyst_df = catalyst_df.drop_duplicates()
-catalyst_df["BET_surface_area_m2_per_g"] = (
-    catalyst_df["BET_surface_area_m2_per_g"].str.split().str[0].str.split(",").str[0]
-)
-catalyst_df["BET_surface_area_m2_per_g"] = pd.to_numeric(
-    catalyst_df["BET_surface_area_m2_per_g"], errors="coerce"
-)
-catalyst_df = catalyst_df.sort_values(
-    by="BET_surface_area_m2_per_g", ascending=False
-).head(10)
-
-fig = px.bar(
-    catalyst_df,
-    x="BET_surface_area_m2_per_g",
-    y="catalyst",
-    orientation="h",
-    title="Top 10 Catalysts by BET Surface Area",
-    color="BET_surface_area_m2_per_g",  # 🎨 color intensity by value
-    color_continuous_scale="Viridis",  # try 'Plasma', 'Cividis', 'Bluered', 'Turbo'
-)
-
-# 🧠 Styling and readability
-fig.update_traces(
-    text=catalyst_df["BET_surface_area_m2_per_g"].round(1),
-    textposition="outside",
-    marker_line_color="rgba(0,0,0,0.4)",
-    marker_line_width=1.0,
-)
-
-fig.update_layout(
-    width=1000,
-    height=400,
-    yaxis=dict(autorange="reversed"),  # largest value on top
-    xaxis_title="BET Surface Area (m²/g)",
-    yaxis_title="Catalyst",
-    title_x=0.5,
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    coloraxis_colorbar=dict(
-        title="Surface Area (m²/g)",  # label colorbar
-        thicknessmode="pixels",
-        thickness=20,
-        lenmode="pixels",
-        len=300,
-        yanchor="middle",
-        y=0.5,
-    ),
-    font=dict(family="Arial", size=14),
-    margin=dict(l=50, t=80, b=50),
-)
-
-# subtle gridlines
-fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor="lightgray")
-fig.update_yaxes(showgrid=False)
-fig.update_coloraxes(showscale=False)
-fig.show()
-
-
-## Tafel slope ###
-
-
-tafel_df = (
-    df[["catalyst", "tafel_mV_per_dec"]]
-    .dropna(axis=0)
-    .sort_values(by="tafel_mV_per_dec")
-)
-tafel_df["tafel_mV_per_dec"] = (
-    tafel_df["tafel_mV_per_dec"].str.split().str[0].str.split(",").str[0]
-)
-tafel_df["tafel_mV_per_dec"] = pd.to_numeric(
-    tafel_df["tafel_mV_per_dec"], errors="coerce"
-)
-tafel_df = tafel_df.drop_duplicates()
-tafel_df = tafel_df.sort_values(by="tafel_mV_per_dec", ascending=False).head(15)
-tafel_df = tafel_df[:-2]
-
-
-fig = px.bar(
-    tafel_df,
-    x="tafel_mV_per_dec",
-    y="catalyst",
-    # orientation="h",
-    title="Top 10 Catalysts by Tafel Slope",
-    color="tafel_mV_per_dec",  # 🎨 color intensity by value
-    color_continuous_scale="Viridis",  # try 'Plasma', 'Cividis', 'Bluered', 'Turbo'
-)
-
-# 🧠 Styling and readability
-fig.update_traces(
-    text=tafel_df["tafel_mV_per_dec"].round(1),
-    textposition="outside",
-    marker_line_color="rgba(0,0,0,0.4)",
-    marker_line_width=1.0,
-)
-
-fig.update_layout(
-    width=1000,
-    height=400,
-    yaxis=dict(autorange="reversed"),  # largest value on top
-    xaxis_title="mvV/s",
-    yaxis_title="Catalyst",
-    title_x=0.5,
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    coloraxis_colorbar=dict(
-        title="Tafel Slope",  # label colorbar
-        thicknessmode="pixels",
-        thickness=20,
-        lenmode="pixels",
-        len=300,
-        yanchor="middle",
-        y=0.5,
-    ),
-    font=dict(family="Arial", size=14),
-    margin=dict(l=50, t=80, b=50),
-)
-
-# subtle gridlines
-fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor="lightgray")
-fig.update_yaxes(showgrid=False)
-fig.update_coloraxes(showscale=False)
-fig.show()
-
-
-#### Stability ###
-
-
-stability_df = (
-    df[["catalyst", "stability_time_hours"]]
-    .dropna(axis=0)
-    .sort_values(by="stability_time_hours")
-)
-
-stability_df["stability_time_hours"] = pd.to_numeric(
-    stability_df["stability_time_hours"], errors="coerce"
-)
-stability_df = stability_df.drop_duplicates()
-stability_df = stability_df.sort_values(
-    by="stability_time_hours", ascending=False
-).head(15)
-# tafel_df = tafel_df[:-2]
-
-
-fig = px.bar(
-    stability_df,
-    x="stability_time_hours",
-    y="catalyst",
-    # orientation="h",
-    title="Top 10 Catalysts by Tafel Slope",
-    color="stability_time_hours",  # 🎨 color intensity by value
-    color_continuous_scale="Viridis",  # try 'Plasma', 'Cividis', 'Bluered', 'Turbo'
-)
-
-# 🧠 Styling and readability
-fig.update_traces(
-    text=stability_df["stability_time_hours"].round(1),
-    textposition="outside",
-    marker_line_color="rgba(0,0,0,0.4)",
-    marker_line_width=1.0,
-)
-
-fig.update_layout(
-    width=1000,
-    height=400,
-    yaxis=dict(autorange="reversed"),  # largest value on top
-    xaxis_title="Stability (hr)",
-    yaxis_title="Catalyst",
-    title_x=0.5,
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    coloraxis_colorbar=dict(
-        title="Tafel Slope",  # label colorbar
-        thicknessmode="pixels",
-        thickness=20,
-        lenmode="pixels",
-        len=300,
-        yanchor="middle",
-        y=0.5,
-    ),
-    font=dict(family="Arial", size=14),
-    margin=dict(l=50, t=80, b=50),
-)
-
-# subtle gridlines
-fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor="lightgray")
-fig.update_yaxes(showgrid=False)
-fig.update_coloraxes(showscale=False)
-fig.show()
-
-
-### overpotential ##
-
-op_df = (
-    df[["catalyst", "overpotential_mV_at_10mAcm2"]]
-    .dropna(axis=0)
-    .sort_values(by="overpotential_mV_at_10mAcm2")
-)
-op_df["overpotential_mV_at_10mAcm2"] = (
-    op_df["overpotential_mV_at_10mAcm2"].str.split().str[0].str.split(",").str[0]
-)
-op_df["overpotential_mV_at_10mAcm2"] = pd.to_numeric(
-    op_df["overpotential_mV_at_10mAcm2"], errors="coerce"
-)
-op_df = op_df.drop_duplicates()
-op_df = op_df.sort_values(by="overpotential_mV_at_10mAcm2", ascending=False).head(15)
-op_df = op_df[:-2]
-
-
-fig = px.bar(
-    op_df,
-    x="overpotential_mV_at_10mAcm2",
-    y="catalyst",
-    # orientation="h",
-    title="Top 10 Catalysts by Tafel Slope",
-    color="overpotential_mV_at_10mAcm2",  # 🎨 color intensity by value
-    color_continuous_scale="Viridis",  # try 'Plasma', 'Cividis', 'Bluered', 'Turbo'
-)
-
-# 🧠 Styling and readability
-fig.update_traces(
-    text=op_df["overpotential_mV_at_10mAcm2"].round(1),
-    textposition="outside",
-    marker_line_color="rgba(0,0,0,0.4)",
-    marker_line_width=1.0,
-)
-
-fig.update_layout(
-    width=1000,
-    height=400,
-    yaxis=dict(autorange="reversed"),  # largest value on top
-    xaxis_title="mvV/s",
-    yaxis_title="Catalyst",
-    title_x=0.5,
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    coloraxis_colorbar=dict(
-        title="Tafel Slope",  # label colorbar
-        thicknessmode="pixels",
-        thickness=20,
-        lenmode="pixels",
-        len=300,
-        yanchor="middle",
-        y=0.5,
-    ),
-    font=dict(family="Arial", size=14),
-    margin=dict(l=50, t=80, b=50),
-)
-
-# subtle gridlines
-fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor="lightgray")
-fig.update_yaxes(showgrid=False)
-fig.update_coloraxes(showscale=False)
-fig.show()
-
-
-# Crystallinity##
-
-
-crys_counts = df["crystallinity"].value_counts(dropna=False).reset_index()
-crys_counts.columns = ["crystallinity", "Count"]
-crys_counts = crys_counts.head(5)
-crys_counts.loc[1, "crystallinity"] = "Not reported/Not found"
-
-fig = px.pie(
-    crys_counts,
-    names="crystallinity",
-    values="Count",
-    title="Crystallinity Distribution",
-    color_discrete_sequence=px.colors.qualitative.Pastel,
-)
-fig.update_traces(
-    textinfo="value",  # show category + number
-    textposition="inside",  # text inside each slice
-    # showlegend=True,  # keep the legend visible
-    hole=0.4,
-)
-fig.show()
-
-
-### Metal dist
-
-metal_df = df[["catalyst", "metal_types"]].dropna(axis=0).sort_values(by="metal_types")
-
-metal_df = metal_df.drop_duplicates()
-
-metal_df["metal_types"] = (
-    metal_df["metal_types"].str.split().str[0].str.split(",").str[0]
-)
-z = []
-for row in metal_df.iterrows():
-    z.extend(row[1]["metal_types"].split(","))
-z = [i.strip() for i in z]
-
-
-xx = pd.Series(z).value_counts()
-
-xx_df = pd.DataFrame(xx).reset_index()
-xx_df.columns = ["metal", "count"]
-xx_df = xx_df.head(10)
-
-fig = px.bar(
-    xx_df,
-    x="metal",
-    y="count",
-    title="Top 10 Catalysts by Tafel Slope",
-    text="count",
-    color="metal",  # optional: different color per metal
-    color_discrete_sequence=px.colors.qualitative.Set2,
-)
-
-# Add value labels
-fig.update_traces(
-    textposition="outside",
-    marker_line_color="rgba(0,0,0,0.4)",
-    marker_line_width=1,
-)
-# Layout cleanup
-fig.update_layout(
-    width=900,
-    height=600,
-    title_x=0.5,
-    xaxis_title="Metal",
-    yaxis_title="Count",
-    showlegend=False,
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    font=dict(family="Arial", size=14),
-    margin=dict(l=50, r=50, t=80, b=100),
-)
-fig.update_coloraxes(showscale=False)
-fig.show()
-
-
-import pandas as pd
-import plotly.express as px
-from dash import Dash, dcc, html
-
-# === 1️⃣ Load & preprocess your data ===
-df = pd.read_csv("output.csv").drop_duplicates()
-
-# Cleaning metal_count
-df.loc[
-    df["metal_count"].str.contains("single", case=False, na=False), "metal_count"
-] = "single"
-df.loc[
-    df["metal_count"].str.contains("bimetallic", case=False, na=False), "metal_count"
-] = "binary"
-
-# === 2️⃣ Create all your figures (reusing your logic) ===
-
-## Metal Count Pie Chart
-counts = df["metal_count"].value_counts().reset_index()
-counts.columns = ["metal_count", "Count"]
-counts = counts.head(3)
-fig_metal_count = px.pie(
-    counts,
-    names="metal_count",
-    values="Count",
-    title="Metal Count Distribution",
-    color_discrete_sequence=px.colors.qualitative.Pastel,
-)
-fig_metal_count.update_traces(textinfo="label+value", textposition="inside")
-fig_metal_count.update_layout(showlegend=False)
-
-## Morphology Pie Chart
-morphology_counts = df["morphology"].value_counts().reset_index()
-morphology_counts.columns = ["morphology", "Count"]
-morphology_counts = morphology_counts.head(5)
-fig_morph = px.pie(
-    morphology_counts,
-    names="morphology",
-    values="Count",
-    title="Morphology Distribution",
-    color_discrete_sequence=px.colors.qualitative.Pastel,
-    hole=0.4,
-)
-fig_morph.update_traces(textinfo="value", textposition="inside")
-
-## BET Surface Area
-catalyst_df = df[["catalyst", "BET_surface_area_m2_per_g"]].dropna().drop_duplicates()
-catalyst_df["BET_surface_area_m2_per_g"] = (
-    catalyst_df["BET_surface_area_m2_per_g"].str.split().str[0].str.split(",").str[0]
-)
-catalyst_df["BET_surface_area_m2_per_g"] = pd.to_numeric(
-    catalyst_df["BET_surface_area_m2_per_g"], errors="coerce"
-)
-catalyst_df = catalyst_df.sort_values(
-    by="BET_surface_area_m2_per_g", ascending=False
-).head(10)
-fig_bet = px.bar(
-    catalyst_df,
-    x="BET_surface_area_m2_per_g",
-    y="catalyst",
-    orientation="h",
-    title="Top 10 Catalysts by BET Surface Area",
-    color="BET_surface_area_m2_per_g",
-    color_continuous_scale="Viridis",
-)
-fig_bet.update_coloraxes(showscale=False)
-
-## Tafel Slope
-tafel_df = df[["catalyst", "tafel_mV_per_dec"]].dropna().drop_duplicates()
-tafel_df["tafel_mV_per_dec"] = (
-    tafel_df["tafel_mV_per_dec"].str.split().str[0].str.split(",").str[0]
-)
-tafel_df["tafel_mV_per_dec"] = pd.to_numeric(
-    tafel_df["tafel_mV_per_dec"], errors="coerce"
-)
-tafel_df = tafel_df.sort_values(by="tafel_mV_per_dec", ascending=False).head(10)
-fig_tafel = px.bar(
-    tafel_df,
-    x="tafel_mV_per_dec",
-    y="catalyst",
-    title="Top 10 Catalysts by Tafel Slope",
-    color="tafel_mV_per_dec",
-    color_continuous_scale="Viridis",
-)
-fig_tafel.update_coloraxes(showscale=False)
-
-## Stability
-stability_df = df[["catalyst", "stability_time_hours"]].dropna().drop_duplicates()
-stability_df["stability_time_hours"] = pd.to_numeric(
-    stability_df["stability_time_hours"], errors="coerce"
-)
-stability_df = stability_df.sort_values(
-    by="stability_time_hours", ascending=False
-).head(10)
-fig_stability = px.bar(
-    stability_df,
-    x="stability_time_hours",
-    y="catalyst",
-    title="Top 10 Catalysts by Stability (hours)",
-    color="stability_time_hours",
-    color_continuous_scale="Viridis",
-)
-fig_stability.update_coloraxes(showscale=False)
-
-## Crystallinity
-crys_counts = df["crystallinity"].value_counts(dropna=False).reset_index()
-crys_counts.columns = ["crystallinity", "Count"]
-crys_counts.loc[1, "crystallinity"] = "Not reported/Not found"
-crys_counts = crys_counts.head(5)
-fig_crys = px.pie(
-    crys_counts,
-    names="crystallinity",
-    values="Count",
-    title="Crystallinity Distribution",
-    color_discrete_sequence=px.colors.qualitative.Pastel,
-    hole=0.4,
-)
-
-## Metal Types
-metal_df = df[["catalyst", "metal_types"]].dropna().drop_duplicates()
-z = []
-for _, row in metal_df.iterrows():
-    z.extend([x.strip() for x in str(row["metal_types"]).split(",")])
-xx_df = pd.Series(z).value_counts().reset_index()
-xx_df.columns = ["metal", "count"]
-xx_df = xx_df.head(10)
-fig_metal = px.bar(
-    xx_df,
-    x="metal",
-    y="count",
-    title="Metal Type Distribution",
-    text="count",
-    color="metal",
-    color_discrete_sequence=px.colors.qualitative.Set2,
-)
-fig_metal.update_traces(textposition="outside")
-fig_metal.update_layout(showlegend=False)
-
-# === 3️⃣ Dash app layout ===
-
+MORPH_OPTS = sorted(df["morphology"].dropna().unique()) if "morphology" in df else []
+
+# ---------------------------
+# App
+# ---------------------------
 app = Dash(__name__)
-app.title = "MOF Catalyst Analytics Dashboard"
+app.title = "MOF Catalysts Analytics Dashboard"
 
+# ─── Layout ────────────────────────────────────────────────
 app.layout = html.Div(
-    style={
-        "backgroundColor": "#f9f9f9",
-        "fontFamily": "Arial",
-        "padding": "20px",
-    },
+    style={"backgroundColor": "#f9f9f9", "fontFamily": "Arial", "padding": "25px"},
     children=[
-        html.H1("MOF Catalysts Analytics Dashboard", style={"textAlign": "center"}),
-        html.Div(
-            [
-                html.Div(dcc.Graph(figure=fig_metal_count), className="six columns"),
-                html.Div(dcc.Graph(figure=fig_morph), className="six columns"),
-            ],
-            style={"display": "flex", "justifyContent": "space-around"},
+        html.H1(
+            "MOF Catalysts Analytics Dashboard",
+            style={"textAlign": "center", "marginBottom": "20px", "color": "#2c3e50"},
         ),
+        # --- Controls Row ---
         html.Div(
-            [
-                html.Div(dcc.Graph(figure=fig_bet), className="six columns"),
-                html.Div(dcc.Graph(figure=fig_tafel), className="six columns"),
-            ],
             style={
                 "display": "flex",
-                "justifyContent": "space-around",
-                "marginTop": "30px",
+                "flexWrap": "wrap",
+                "justifyContent": "center",
+                "gap": "20px",
+                "marginBottom": "30px",
             },
-        ),
-        html.Div(
-            [
-                html.Div(dcc.Graph(figure=fig_stability), className="six columns"),
-                html.Div(dcc.Graph(figure=fig_crys), className="six columns"),
+            children=[
+                html.Div(
+                    [
+                        html.Label("Metric", style={"fontWeight": "bold"}),
+                        dcc.Dropdown(
+                            id="metric-dd",
+                            options=[
+                                {"label": k, "value": v}
+                                for k, v in METRIC_OPTIONS.items()
+                            ],
+                            value="BET_surface_area_m2_per_g",
+                            clearable=False,
+                            style={"width": "220px"},
+                        ),
+                    ]
+                ),
+                html.Div(
+                    [
+                        html.Label("Top N", style={"fontWeight": "bold"}),
+                        html.Div(
+                            dcc.Slider(
+                                id="topn",
+                                min=5,
+                                max=30,
+                                step=1,
+                                value=10,
+                                marks={5: "5", 10: "10", 20: "20", 30: "30"},
+                                tooltip={"placement": "bottom"},
+                            ),
+                            style={"width": "240px"},
+                        ),
+                    ]
+                ),
+                html.Div(
+                    [
+                        html.Label("Filter: metal_count", style={"fontWeight": "bold"}),
+                        dcc.Dropdown(
+                            id="mc-filter",
+                            options=[{"label": v, "value": v} for v in METALCOUNT_OPTS],
+                            value=[],
+                            multi=True,
+                            placeholder="All",
+                            style={"width": "220px"},
+                        ),
+                    ]
+                ),
+                html.Div(
+                    [
+                        html.Label("Filter: morphology", style={"fontWeight": "bold"}),
+                        dcc.Dropdown(
+                            id="morph-filter",
+                            options=[{"label": v, "value": v} for v in MORPH_OPTS],
+                            value=[],
+                            multi=True,
+                            placeholder="All",
+                            style={"width": "220px"},
+                        ),
+                    ]
+                ),
             ],
+        ),
+        # --- Row 1 ---
+        html.Div(
             style={
                 "display": "flex",
-                "justifyContent": "space-around",
-                "marginTop": "30px",
+                "justifyContent": "center",
+                "gap": "20px",
+                "flexWrap": "wrap",
             },
+            children=[
+                html.Div(
+                    dcc.Graph(id="fig-metal-count"),
+                    style={
+                        "background": "white",
+                        "padding": "10px",
+                        "borderRadius": "10px",
+                        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
+                        "width": "48%",
+                    },
+                ),
+                html.Div(
+                    dcc.Graph(id="fig-morph"),
+                    style={
+                        "background": "white",
+                        "padding": "10px",
+                        "borderRadius": "10px",
+                        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
+                        "width": "48%",
+                    },
+                ),
+            ],
         ),
+        # --- Row 2 ---
         html.Div(
-            dcc.Graph(figure=fig_metal),
-            style={"width": "80%", "margin": "40px auto"},
+            style={
+                "display": "flex",
+                "justifyContent": "center",
+                "gap": "20px",
+                "flexWrap": "wrap",
+                "marginTop": "20px",
+            },
+            children=[
+                html.Div(
+                    dcc.Graph(id="fig-metric"),
+                    style={
+                        "background": "white",
+                        "padding": "10px",
+                        "borderRadius": "10px",
+                        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
+                        "width": "48%",
+                    },
+                ),
+                html.Div(
+                    dcc.Graph(id="fig-crys"),
+                    style={
+                        "background": "white",
+                        "padding": "10px",
+                        "borderRadius": "10px",
+                        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
+                        "width": "48%",
+                    },
+                ),
+            ],
+        ),
+        # --- Row 3 (Full width) ---
+        html.Div(
+            style={"display": "flex", "justifyContent": "center", "marginTop": "20px"},
+            children=[
+                html.Div(
+                    dcc.Graph(id="fig-metal-types"),
+                    style={
+                        "background": "white",
+                        "padding": "15px",
+                        "borderRadius": "10px",
+                        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
+                        "width": "98%",
+                    },
+                ),
+            ],
         ),
     ],
 )
 
+
+# ---------------------------
+# Callbacks
+# ---------------------------
+def apply_filters(dff, mc_values, morph_values):
+    if mc_values:
+        dff = dff[dff["metal_count"].isin(mc_values)]
+    if morph_values:
+        dff = dff[dff["morphology"].isin(morph_values)]
+    return dff
+
+
+@app.callback(
+    Output("fig-metal-count", "figure"),
+    Output("fig-morph", "figure"),
+    Output("fig-metric", "figure"),
+    Output("fig-crys", "figure"),
+    Output("fig-metal-types", "figure"),
+    Input("metric-dd", "value"),
+    Input("topn", "value"),
+    Input("mc-filter", "value"),
+    Input("morph-filter", "value"),
+)
+def update_dashboard(metric_col, topn, mc_values, morph_values):
+    dff = apply_filters(df, mc_values, morph_values)
+
+    # Metal count pie (top 3)
+    if "metal_count" in dff:
+        mc = dff["metal_count"].value_counts().reset_index().head(3)
+        mc.columns = ["metal_count", "Count"]
+        fig_mc = pie_counts(
+            mc, "metal_count", "Count", "Metal Count Distribution", donut=False
+        )
+    else:
+        fig_mc = px.pie(title="Metal Count Distribution")
+
+    # Morphology donut (top 5)
+    if "morphology" in dff:
+        morph = dff["morphology"].value_counts().reset_index().head(5)
+        morph.columns = ["morphology", "Count"]
+        fig_morph = pie_counts(
+            morph, "morphology", "Count", "Morphology Distribution", donut=True
+        )
+    else:
+        fig_morph = px.pie(title="Morphology Distribution")
+
+    # Metric H-bar
+    title_map = {
+        "BET_surface_area_m2_per_g": "Top Catalysts by BET Surface Area",
+        "tafel_mV_per_dec": "Top Catalysts by Tafel Slope",
+        "stability_time_hours": "Top Catalysts by Stability (hours)",
+        "overpotential_mV_at_10mAcm2": "Top Catalysts by Overpotential (mV @10 mA/cm²)",
+    }
+    fig_metric = hbar_metric(
+        dff, metric_col, title_map.get(metric_col, "Top Catalysts"), top_n=topn
+    )
+
+    # Crystallinity donut (top 5, include NaN → labeled)
+    if "crystallinity" in dff:
+        crys = dff["crystallinity"].value_counts(dropna=False).reset_index()
+        crys.columns = ["crystallinity", "Count"]
+        crys["crystallinity"] = crys["crystallinity"].astype(object)
+        crys.loc[crys["crystallinity"].isna(), "crystallinity"] = (
+            "Not reported/Not found"
+        )
+        crys = crys.head(5)
+        fig_crys = pie_counts(
+            crys, "crystallinity", "Count", "Crystallinity Distribution", donut=True
+        )
+    else:
+        fig_crys = px.pie(title="Crystallinity Distribution")
+
+    # Metal types bar (top 10)
+    fig_metals = bar_metal_types(dff, top_n=10)
+
+    return fig_mc, fig_morph, fig_metric, fig_crys, fig_metals
+
+
+# ---------------------------
 if __name__ == "__main__":
-    app.run(debug=True, port=8050)
+    app.run(debug=True, port=8049)
