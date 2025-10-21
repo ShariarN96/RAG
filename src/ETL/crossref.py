@@ -24,7 +24,7 @@ def doi_resolves_to_wiley(doi: str, timeout: int = 15) -> bool:
 
 
 def openalex_random_wiley(
-    query: str, from_date: str, to_date: str | None, n: int = 20
+    query: str, from_date: str, to_date: str | None, n: int = 50
 ) -> list[str]:
     flt = [
         f"primary_location.source.host_organization:{WILEY_PUBLISHER_ID}",
@@ -39,7 +39,7 @@ def openalex_random_wiley(
         "sample": n,  # random N items each call
         "per_page": n,
     }
-    r = requests.get(OPENALEX_BASE, params=params, timeout=30)
+    r = requests.get(OPENALEX_BASE, params=params, timeout=60)
     r.raise_for_status()
     results = r.json().get("results", []) or []
     dois = []
@@ -51,7 +51,7 @@ def openalex_random_wiley(
 
 
 def crossref_random_wiley(
-    query: str, year_from: int, year_to: int, n: int = 20
+    query: str, year_from: int, year_to: int, n: int = 30
 ) -> list[str]:
     filters = [
         f"member:{WILEY_MEMBER_ID}",
@@ -80,7 +80,7 @@ def crossref_random_wiley(
 
 def find_random_wiley_dois(
     query: str,
-    date_from: str = "2023-01-01",
+    date_from: str = "2020-01-01",
     date_to: str | None = "2025-12-31",
     limit: int = 20,
     verify_wiley: bool = True,
@@ -119,26 +119,62 @@ def add_row(doi_list):
     df = pd.DataFrame(columns=["DOI"])
     for doi in doi_list:
         df.loc[len(df)] = doi
+
     df.to_csv("doi.csv", mode="a", header=not os.path.exists("doi.csv"), index=False)
 
 
+def remove_duplicates(doi_list):
+    df = pd.read_csv(doi_list)
+    df = df.drop_duplicates()
+    df.to_csv(doi_list, index=False)
+
+
 def add_dois():
-    QUERY = "metal organic framework oxygen evolution reaction"
-    DATE_FROM = "2023-01-01"
+    QUERY = "detection of SARS covid-19"
+    DATE_FROM = "2020-01-01"
     DATE_TO = "2025-12-31"
-    LIMIT = 20
+    LIMIT = 30
     VERIFY = True
     dois = find_random_wiley_dois(QUERY, DATE_FROM, DATE_TO, LIMIT, verify_wiley=VERIFY)
+
     add_row(dois)
+    # remove_duplciates
 
 
-# ---- Run with your hard-coded defaults ----
-if __name__ == "__main__":
-    QUERY = "metal organic framework oxygen evolution reaction"
-    DATE_FROM = "2023-01-01"
-    DATE_TO = "2025-12-31"
-    LIMIT = 20
-    VERIFY = True
-    dois = find_random_wiley_dois(QUERY, DATE_FROM, DATE_TO, LIMIT, verify_wiley=VERIFY)
-    add_row(dois)
-    print(f"\nReturned {len(dois)} Wiley DOIs (randomized).")
+# # ---- Run with your hard-coded defaults ----
+# if __name__ == "__main__":
+#     QUERY = "metal organic framework oxygen evolution reaction"
+#     DATE_FROM = "2023-01-01"
+#     DATE_TO = "2025-12-31"
+#     LIMIT = 20
+#     VERIFY = True
+#     dois = find_random_wiley_dois(QUERY, DATE_FROM, DATE_TO, LIMIT, verify_wiley=VERIFY)
+#     add_row(dois)
+#     print(f"\nReturned {len(dois)} Wiley DOIs (randomized).")
+
+
+BASE = "https://api.crossref.org/works"
+
+
+def wiley_dois_2025_by_keyword(query, limit=5):
+    """
+    Fetch up to `limit` DOIs from Wiley-Blackwell (member:311), year 2025,
+    filtered by a keyword query. Keeps it to a single, small request.
+    """
+    params = {
+        "query": query,  # try 'high-entropy alloy', 'lithium ion battery', etc.
+        "filter": "member:311,type:journal-article,from-pub-date:2025-01-01,until-pub-date:2025-12-31",
+        "rows": limit,  # only get what we need
+        "select": "DOI",  # DOIs only
+        "sort": "published",
+        "order": "desc",
+    }
+    headers = {"User-Agent": "wiley-doi-fetcher/0.1"}  # generic UA; no personal info
+    r = requests.get(BASE, params=params, headers=headers, timeout=30)
+    r.raise_for_status()
+    items = r.json().get("message", {}).get("items", [])
+    return [it["DOI"] for it in items if "DOI" in it]
+
+
+for doi in wiley_dois_2025_by_keyword("detection of SARS covid-19", limit=50):
+    print(doi)

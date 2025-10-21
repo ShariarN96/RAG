@@ -36,13 +36,19 @@ def save_wiley_pdf_to_blob(doi: str, container: str = CONTAINER):
     )
 
     # Stream download from Wiley and stream-upload to Azure (no disk)
-    with requests.get(url, headers=headers, stream=True, timeout=120) as r:
-        r.raise_for_status()
-        blob_client.upload_blob(r.raw, overwrite=True, content_type="application/pdf")
+    try:
+        with requests.get(url, headers=headers, stream=True, timeout=120) as r:
+            r.raise_for_status()
+            blob_client.upload_blob(
+                r.raw, overwrite=True, content_type="application/pdf"
+            )
+    except Exception as e:
+        print(f"Error processing DOI {doi}: {e}")
+        return  # Continue the loop in the calling function
 
     print(f"✅ Uploaded {doi} -> {blob_client.url}")
     time.sleep(TDM_DELAY_SEC)  # be nice to Wiley’s rate limits
 
 
 # Example:
-save_wiley_pdf_to_blob("10.1002/smll.202311713")
+# save_wiley_pdf_to_blob("10.1002/smll.202311713")

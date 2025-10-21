@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 
 import tiktoken
@@ -7,6 +8,7 @@ from docling_core.transforms.chunker.tokenizer.openai import OpenAITokenizer
 from dotenv import load_dotenv
 from openai import OpenAI
 
+warnings.filterwarnings("ignore")
 OpenAI_API_PATH = Path(__file__).parent.parent.parent / ".env"
 OPENAI_KEY = load_dotenv(OpenAI_API_PATH)
 
@@ -30,9 +32,12 @@ tokenizer = OpenAITokenizer(
 
 current_dir = Path(__file__)
 
+# pdf_dir = generate_sas_url()
 
-def chunks_from_pdf():
-    pdf_dir = current_dir.parent.parent.parent.parent / "pdfs" / "test.pdf"
+
+def chunks_from_pdf(pdf_dir):
+    # pdf_dir = current_dir.parent.parent.parent.parent / "pdfs" / "test.pdf"
+
     result = converter.convert(pdf_dir)
 
     chunker = HybridChunker(

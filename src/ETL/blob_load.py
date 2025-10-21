@@ -38,7 +38,16 @@ def list_blob():
 
 
 # Call the function
-list_blob()
+# list_blob()
+
+
+def delete_blob():
+    for blob in container_client.list_blobs():
+        blob_name = blob.name
+        container_client.delete_blob(blob_name)
+
+
+# delete_blob()
 
 
 def upload_blob():
@@ -74,13 +83,13 @@ def upload_blob():
                 print(f"File not found: {filename}")
 
 
-upload_blob()
+# upload_blob()
 
 
-def generate_sas_url():
+def generate_sas_url(blob_name):
     # Use your connection string
     container_name = "articles"
-    blob_name = list_blob()[0]
+
     # Connect to blob service
     bsc = BlobServiceClient.from_connection_string(conn_str)
 
@@ -99,3 +108,6 @@ def generate_sas_url():
     sas_url = f"{account_url}/{container_name}/{blob_name}?{sas_token}"
 
     return sas_url
+
+
+# article = generate_sas_url()
